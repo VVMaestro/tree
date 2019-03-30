@@ -59,67 +59,79 @@ function segmentTree(array, fn, N) {
 };
 
 function recursiveSegmentTree(array, fn, N) {
+  //как определить размерность входящего массива?
+
+  //инициализация по Х
   const MAX_N = array.length;
   let tree = new Array(MAX_N * 4);
+  let MAX_M = array[0].length;
+  for (let i = 0; i < tree.length; i++) {
+    tree[i] = new Array(MAX_M * 4);
+    for (let j = 0; j < tree[i].length; j++) {
+      tree[i][j] = N;
+    }
+  }
+
   
   //построение по вторым индексам
   function buildY (vx, lx, rx, vy, ly, ry) {
     if (ly == ry) {
       if (lx == rx) tree[vx][vy] = array[lx][ly];
       else tree[vx][vy] = fn(tree[vx*2][vy], tree[vx*2+1][vy]);
-    }
-
-    let my = parseInt ((ly + ry) / 2);
+    } else {
+      let my = parseInt((ly + ry) / 2);
     
-    buildY (vx, lx, rx, vy*2, ly, my);
-    buildY (vx, lx, rx, vy*2+1, my+1, ry);
+      buildY (vx, lx, rx, vy*2, ly, my);
+      buildY (vx, lx, rx, vy*2+1, my+1, ry);
 
-    tree[vx][vy] = fn(tree[vx][vy*2], tree[vx][vy*2+1]);
+      tree[vx][vy] = fn(tree[vx][vy*2], tree[vx][vy*2+1]);
+    }
   }
 
   //построение по первым индексам
   function buildX (vx, lx, rx) {
-    const MAX_M = array[vx].length;
-
     if (lx != rx) {
-     let mx = parseInt(lx + rx) / 2;
+     let mx = parseInt((lx + rx) / 2);
      buildX(vx*2, lx, mx);
      buildX(vx*2+1, mx+1, rx);
     }
 
-    buildY (vx, lx, rx, 1, 0, MAX_M-1);
+    buildY(vx, lx, rx, 1, 0, MAX_M-1);
   }
 
   buildX (1, 0, MAX_N - 1);
 
-  // return function (fromX, toX) {
-  //   return function (fromY, toY) {
-  //     function requestY (vx, vy, tly, try_, ly, ry) {
-  //       if (ly > ry) return N;
-  //       if (ly == tly && try_ == ry) return tree[vx][vy];
+  //как реализовать запрос?
+  return function (fromX, toX) {
+    return function (fromY, toY) {
+      function requestY (vx, vy, tly, try_, ly, ry) {
+        if (ly > ry) return N;
+        if (ly == tly && try_ == ry) return tree[vx][vy];
 
-  //       let tmy = parseInt((tly + try_) / 2);
+        let tmy = parseInt((tly + try_) / 2);
 
-  //       let argument1 = (vx, vy*2, tly, tmy, ly, Math.min(ry, tmy));
-  //       let argument2 = (vx, vy*2+1, tmy+1, try_, Math.max(ly, tmy+1), ry);
+        let argument1 = (vx, vy*2, tly, tmy, ly, Math.min(ry, tmy));
+        let argument2 = (vx, vy*2+1, tmy+1, try_, Math.max(ly, tmy+1), ry);
 
-  //       return fn(argument1, argument2);
-  //     }
+        return fn(argument1, argument2);
+      }
 
-  //     function requestX (vx, tlx, trx, lx, rx, ly, ly) {
-  //       if (lx > rx) return N;
-  //       if (lx == tlx && trx == rx) return requestY (vx, 1, 0, MAX_M, ly, ry);
+      function requestX (vx, tlx, trx, lx, rx, ly, ry) {
+        let MAX_M = array[0].length;
 
-  //       let tmx = parseInt((tlx + trx) / 2);
+        if (lx > rx) return N;
+        if (lx == tlx && trx == rx) return requestY (vx, 1, 0, MAX_M-1, ly, ry);
 
-  //       let argument1 = requestX (vx*2, tlx, tmx, lx, Math.min(rx, tmx), ly, ry);
-  //       let argument2 = requestX (vx*2+1, tmx+1, trx, Math.max(lx, tmx+1), rx, ly, ry);
-  //       return fn(argument1, argument2);
-  //     }
+        let tmx = parseInt((tlx + trx) / 2);
 
-  //     return requestX (1, 0, MAX_M-1, fromX, toX, fromY, toY);
-  //   }
-  // }
+        let argument1 = requestX (vx*2, tlx, tmx, lx, Math.min(rx, tmx), ly, ry);
+        let argument2 = requestX (vx*2+1, tmx+1, trx, Math.max(lx, tmx+1), rx, ly, ry);
+        return fn(argument1, argument2);
+      }
+
+      return requestX (1, 0, MAX_N-1, fromX, toX-1, fromY, toY-1);
+    }
+  }
   // return segmentTree(array, fn, N);
 }
 
