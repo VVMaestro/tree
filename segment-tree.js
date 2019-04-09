@@ -63,10 +63,9 @@ function recursiveSegmentTree(array, fn, N) {
     //инициализация по Х
     const MAX_N = array.length;
     let tree = new Array(MAX_N * 4);
-    let MAX_M;
 
     //инициализация по Y    
-    MAX_M = array[0].length;
+    let MAX_M = array[0].length;
     for (let i = 0; i < tree.length; i++) {
       tree[i] = new Array(MAX_M * 4);
       for (let j = 0; j < tree[i].length; j++) {
@@ -144,6 +143,8 @@ function recursiveSegmentTree(array, fn, N) {
 
     let MAX_M = array[0].length;
     let MAX_Q = array[0][0].length;
+    if (MAX_Q == 0) MAX_Q = 1; //если массив state - пустой, gems первой недели приравниваем к нулю
+
     //инициализация по Y
     for (let i = 0; i < tree.length; i++) {
       tree[i] = new Array(MAX_M * 4);
@@ -151,10 +152,10 @@ function recursiveSegmentTree(array, fn, N) {
       //инициализация по Z
       for (let j = 0; j < tree[i].length; j++) {
         tree[i][j] = new Array(MAX_Q * 4);
-
+        
         for (let k = 0; k < tree[i][j].length; k++) {
           tree[i][j][k] = N;
-        }
+        }              
       }
     }
 
@@ -165,12 +166,12 @@ function recursiveSegmentTree(array, fn, N) {
         if (lx == rx && ly == ry) {          
           tree[vx][vy][vz] = array[lx][ly][lz];
         } else if (lx == rx && ly != ry) {
-            tree[vx][vy][vz] = fn(tree[vx][vy * 2][vz], tree[vx][vy * 2 + 1][vz]);
+          tree[vx][vy][vz] = fn(tree[vx][vy * 2][vz], tree[vx][vy * 2 + 1][vz]);
         } else if (lx != rx && ly == ry) {
           tree[vx][vy][vz] = fn(tree[vx * 2][vy][vz], tree[vx * 2 + 1][vy][vz]);
-        } else {
-          tree[vx][vy][vz] = fn(tree[vx * 2][vy * 2][vz] + tree[vx * 2 + 1][vy * 2][vz],
-            tree[vx * 2][vy * 2 + 1][vz] + tree[vx * 2 + 1][vy * 2 + 1][vz]);
+        } else if (lx != rx && ly != ry) {
+          tree[vx][vy][vz] = fn(fn(tree[vx * 2][vy * 2][vz], tree[vx * 2 + 1][vy * 2][vz]),
+            fn(tree[vx * 2][vy * 2 + 1][vz], tree[vx * 2 + 1][vy * 2 + 1][vz]));
         }
 
       } else {
@@ -224,7 +225,7 @@ function recursiveSegmentTree(array, fn, N) {
 
             return fn(argument1, argument2);
           }
-
+          
           function requestY(vx, vy, tly, try_, ly, ry, lz, rz) {
             if (ly > ry) return N;
             if (ly == tly && try_ == ry) {
@@ -252,7 +253,7 @@ function recursiveSegmentTree(array, fn, N) {
 
             return fn(argument1, argument2);
           }
-
+          
           return requestX(1, 0, MAX_N - 1, fromX, toX - 1, fromY, toY - 1, fromZ, toZ - 1);
         }
       }
@@ -272,18 +273,125 @@ function getElfTree(array) {
   return recursiveSegmentTree(array, sum, 0);
 }
 
+function giveGemToElf (elf, gem, assignment) {
+  if (!assignment[elf]) assignment[elf] = {};
+  if (!assignment[elf][gem]) {
+    assignment[elf][gem] = 1;
+  } else assignment[elf][gem]++;
+}
+
 function assignEqually(tree, wishes, stash, elves, gems, week) {
-  return {};
+  const assignment = {};
+  const elvesToRating = {};
+  const elvesForAssign = elves.map((elf) => elf);
+
+  function findElfForGem (elves, ratingSystem) {
+    let elfForGem;
+    let rating = Number.MAX_VALUE;
+
+    for (let i = 0; i < elves.length; i++) {
+      if (ratingSystem[elves[i]] < rating) {
+        rating = ratingSystem[elves[i]];
+        elfForGem = elves[i];
+      }
+    }
+
+    return elfForGem;
+  }
+
+  for (let i = 0; i < elves.length; i++) {
+    console.log(elves.length + ' - ' + i);
+    elvesToRating[elvesForAssign[i]] = tree(i, i+1)(0, gems.length)(0, week);
+  } 
+
+  for (gem in stash) {
+    for (let i = 0; i < stash[gem]; i++) {
+      let elfForGem = findElfForGem(elvesForAssign, elvesToRating);
+
+      giveGemToElf(elfForGem, gem, assignment);
+
+      elvesToRating[elfForGem]++;
+    }
+  }
+
+  return assignment;
 }
 
 function assignAtLeastOne(tree, wishes, stash, elves, gems, week) {
-  return {};
+  const assignment = {};
+  const elvesForAssign = elves.map((elf) => elf);
+  
+  let elfCounter = 0;
+  for (gem in stash) {
+    for (let i = 0; i < stash[gem]; i++) {
+      let elfForGem = elvesForAssign[elfCounter];
+
+      giveGemToElf(elfForGem, gem, assignment);
+
+      elfCounter++;
+    }
+  }
+
+  return assignment;
 }
 
 function assignPreferredGems(tree, wishes, stash, elves, gems) {
-  return {};
+  const assignment = {};
+  let elvesToRating = {};
+  const elvesForAssign = elves.map((elf) => elf);
+
+  function rebuildRating (rating, gem, gems) {
+    rating = {};
+    let gemIndex = gems.indexOf(gem, 0);
+
+    for (let i = 0; i < elves.length; i++) {
+      rating[elvesForAssign[i]] = wishes[i][gemIndex];
+    }
+
+    return rating;
+  }
+
+  function findElfForGem(elves, ratingSystem) {
+    let elfForGem;
+    let rating = 0;
+
+    for (let i = 0; i < elves.length; i++) {
+      if (ratingSystem[elves[i]] > rating) {
+        rating = ratingSystem[elves[i]];
+        elfForGem = elves[i];
+      }
+    }
+
+    return elfForGem;
+  }
+
+  for (gem in stash) {
+    elvesToRating = rebuildRating(elvesToRating, gem, gems);
+
+    for (let i = 0; i < stash[gem]; i++) {
+      let elfForGem = findElfForGem(elvesForAssign, elvesToRating);
+
+      giveGemToElf(elfForGem, gem, assignment);
+    }
+  }
+
+  return assignment;
 }
 
 function nextState(state, assignment, elves, gems) {
+  for (let i = 0; i < elves.length; i++) {
+    for (let j = 0; j < gems.length; j++) {
+      let gemsForWeek;
+
+      if (assignment[elves[i]]) {
+        gemsForWeek = assignment[elves[i]][gems[j]];
+      } else gemsForWeek = false;
+      
+      if (gemsForWeek) {
+        state[i][j].push(gemsForWeek);
+      } else state[i][j].push(0);
+    }
+  }
+
   return state;
 }

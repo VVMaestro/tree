@@ -69,7 +69,7 @@ function countElvesWithGems(elves, assignment) {
 function runExperiment(elves, gems, wishes, stashes, assignmentFn) {
   let weeks = 0;
   let state = newState(elves, gems);
-  let tree = getElfTree(state)
+  let tree = getElfTree(state);
 
   stashes.forEach(stash => {
     tree = getElfTree(state);
